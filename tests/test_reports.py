@@ -44,3 +44,18 @@ def test_welcome_letter_uses_custom_french_manager_role() -> None:
     )
 
     assert "Directrice générale" in html
+
+
+def test_key_card_uses_mv_boli_for_whole_card() -> None:
+    html = ReportRenderer().render_key_cards([sample_guest()])
+
+    assert "font-family: 'MV Boli'" in html
+    assert ".sheet { width: 148mm" in html
+
+
+def test_welcome_letter_uses_aptos_11pt() -> None:
+    html = ReportRenderer().render_welcome_letters([sample_guest()])
+
+    assert "font-family: Aptos" in html
+    assert "font-size: 11pt" in html
+    assert ".message { margin-top: 6mm; font-size: 11pt" in html

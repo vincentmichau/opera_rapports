@@ -21,14 +21,19 @@
 - Menu **Application → Exporter Excel (.xlsx)** : exporte la liste des arrivées.
 - Menu **Application → Exporter Word (.docx)** : exporte une liste Word annotable.
 
-## 4. RGPD et purge
+## 4. Typographie des documents
+
+- Les **cartons de clés** sont imprimés en police **MV Boli**.
+- Les **welcome letters** sont imprimées en police **Aptos**, taille **11 pt**.
+
+## 5. RGPD et purge
 
 - L'application conserve uniquement les données opérationnelles nécessaires à l'impression.
 - Les données restent sur le poste utilisateur dans une base SQLite locale.
 - Menu **Application → Purger les données importées** supprime toutes les arrivées stockées localement.
 
 
-## 5. Paramètres hôtel
+## 6. Paramètres hôtel
 
 Le menu **Application → Paramètres hôtel** permet de personnaliser :
 

@@ -40,8 +40,8 @@ class ReportRenderer:
 <html lang="fr"><head><meta charset="utf-8"><title>Cartons de clés</title><style>
 {_css()}
 @page {{ size: A6 landscape; margin: 0; }}
-.sheet {{ width: 148mm; height: 105mm; padding: 13mm 14mm; display: flex; flex-direction: column; justify-content: space-between; border: 1px solid #e8dfd0; }}
-.guest {{ font-family: 'MV Boli', 'Segoe Print', cursive; font-size: 22pt; }}
+.sheet {{ width: 148mm; height: 105mm; padding: 13mm 14mm; display: flex; flex-direction: column; justify-content: space-between; border: 1px solid #e8dfd0; font-family: 'MV Boli', 'Segoe Print', cursive; }}
+.guest {{ font-size: 22pt; }}
 .room {{ font-size: 54pt; font-weight: 700; color: #9b7a36; line-height: 1; }}
 .dates {{ font-size: 13pt; }}
 .roomtype {{ font-size: 11pt; text-transform: uppercase; letter-spacing: .08em; }}
@@ -70,11 +70,11 @@ class ReportRenderer:
 <html lang="fr"><head><meta charset="utf-8"><title>Welcome letters</title><style>
 {_css()}
 @page {{ size: 220mm 110mm landscape; margin: 0; }}
-.sheet {{ width: 220mm; height: 110mm; padding: 13mm 18mm; border: 1px solid #e8dfd0; position: relative; }}
-.date {{ text-align: right; font-size: 10pt; }}
-.salute {{ margin-top: 9mm; font-size: 14pt; font-weight: 600; }}
-.message {{ margin-top: 6mm; font-size: 12pt; line-height: 1.45; max-width: 168mm; }}
-.signature {{ position: absolute; right: 18mm; bottom: 12mm; text-align: right; line-height: 1.35; }}
+.sheet {{ width: 220mm; height: 110mm; padding: 13mm 18mm; border: 1px solid #e8dfd0; position: relative; font-family: Aptos, Calibri, 'Segoe UI', Arial, sans-serif; font-size: 11pt; }}
+.date {{ text-align: right; font-size: 11pt; }}
+.salute {{ margin-top: 9mm; font-size: 11pt; font-weight: 600; }}
+.message {{ margin-top: 6mm; font-size: 11pt; line-height: 1.45; max-width: 168mm; }}
+.signature {{ position: absolute; right: 18mm; bottom: 12mm; text-align: right; line-height: 1.35; font-size: 11pt; }}
 @media print {{ body {{ margin: 0; }} .sheet {{ border: 0; }} }}
 </style></head><body>{''.join(sheets)}</body></html>"""
 
