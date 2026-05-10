@@ -13,6 +13,16 @@ Application desktop Windows 11 en Python pour la réception et le night audit d'
 - Modèles HTML/CSS imprimables : `@page { size: A6 landscape }` pour les cartons en police **MV Boli** et `@page { size: 220mm 110mm landscape }` pour les welcome letters en **Aptos 11 pt**.
 - Base technique prête pour l'export PDF/DOCX/Excel, le concepteur de rapports graphique et les modèles personnalisables.
 
+## Architecture
+
+Le projet suit maintenant une séparation **MVC** :
+
+- **Model** : dataclasses métier et view models dans `core.models` et `mvc.models` ;
+- **Controller** : orchestration des imports, exports, rendus et paramètres dans `mvc.controllers.AppController` ;
+- **View** : interface PySide6 dans `gui.main_window`, qui ne pilote plus directement la base de données.
+
+L'accès SQLite est isolé avec un pattern **DAO + factory** : `core.dao.DAOFactory` construit les DAO `GuestDAO` et `SettingsDAO`, tandis que `core.storage.Repository` reste une façade compatible pour le reste de l'application.
+
 ## Installation développeur
 
 ```bash

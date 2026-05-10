@@ -19,3 +19,10 @@
 - Journal local des imports/exports sans données sensibles inutiles.
 - Politique de purge automatique configurable.
 - Tests de packaging Windows sur runner GitHub Actions et machine Windows 11 réelle.
+
+
+## Architecture MVC / DAO
+
+- Continuer à déplacer la logique métier vers `AppController` plutôt que dans la fenêtre Qt.
+- Ajouter progressivement des interfaces DAO pour faciliter les tests et une éventuelle migration SQLite → autre stockage.
+- Remplacer à terme le `QTableWidget` par un `QAbstractTableModel` Qt complet, branché sur `ArrivalTableViewModel`.

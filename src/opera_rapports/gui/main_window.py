@@ -34,12 +34,11 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from opera_rapports.core.exports import export_arrivals_docx, export_arrivals_xlsx
 from opera_rapports.core.models import Gender, Guest, Language
-from opera_rapports.core.reports import ReportContext, ReportRenderer
 from opera_rapports.core.settings import AppSettings
-from opera_rapports.core.storage import Repository
 from opera_rapports.core.xml_importer import import_opera_xml
+from opera_rapports.mvc.controllers import AppController
+from opera_rapports.mvc.models import ArrivalTableViewModel
 
 COLUMNS = [
     ("room_number", "Chambre"),
@@ -75,10 +74,9 @@ class ImportWorker(QObject):
 class MainWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
-        self.repository = Repository()
-        self.app_settings = self.repository.get_app_settings()
-        self.repository.purge_imports_older_than(self.app_settings.retention_days)
-        self.renderer = ReportRenderer()
+        self.controller = AppController()
+        self.view_model = ArrivalTableViewModel()
+        self.app_settings = self.controller.app_settings
         self.guests: list[Guest] = []
         self.setWindowTitle("Opera Rapports — Cartons de clés & Welcome letters")
         self.resize(1280, 760)
@@ -86,7 +84,7 @@ class MainWindow(QMainWindow):
         self._build_toolbar()
         self._build_content()
         self._build_statusbar()
-        self.apply_theme(str(self.repository.get_setting("theme", "light")))
+        self.apply_theme(self.controller.theme())
         self.reload_table()
 
     def _build_actions(self) -> None:
@@ -194,7 +192,8 @@ class MainWindow(QMainWindow):
         return date(qdate.year(), qdate.month(), qdate.day())
 
     def reload_table(self) -> None:
-        self.guests = self.repository.list_guests(self.selected_arrival_date())
+        self.view_model = self.controller.load_arrivals(self.selected_arrival_date())
+        self.guests = self.view_model.guests
         self.table.blockSignals(True)
         self.table.setRowCount(len(self.guests))
         for row, guest in enumerate(self.guests):
@@ -250,14 +249,13 @@ class MainWindow(QMainWindow):
                 retention_days=retention_days.value(),
                 logo_path=logo_path.text().strip(),
             )
-            self.repository.save_app_settings(self.app_settings)
-            purged = self.repository.purge_imports_older_than(self.app_settings.retention_days)
+            purged = self.controller.save_app_settings(self.app_settings)
             if purged:
                 self.reload_table()
             QMessageBox.information(self, "Paramètres", "Paramètres enregistrés.")
 
     def apply_column_visibility(self) -> None:
-        visible = self.repository.get_setting("visible_columns", [key for key, _label in COLUMNS])
+        visible = self.controller.visible_columns()
         if not isinstance(visible, list):
             visible = [key for key, _label in COLUMNS]
         for index, (key, _label) in enumerate(COLUMNS):
@@ -267,7 +265,7 @@ class MainWindow(QMainWindow):
         dialog = QDialog(self)
         dialog.setWindowTitle("Colonnes affichées")
         layout = QGridLayout(dialog)
-        visible = set(self.repository.get_setting("visible_columns", [key for key, _label in COLUMNS]))
+        visible = set(self.controller.visible_columns())
         checks: list[tuple[str, QCheckBox]] = []
         for row, (key, label) in enumerate(COLUMNS):
             check = QCheckBox(label)
@@ -283,16 +281,14 @@ class MainWindow(QMainWindow):
             if not selected:
                 QMessageBox.warning(self, "Colonnes", "Au moins une colonne doit rester visible.")
                 return
-            self.repository.set_setting("visible_columns", selected)
+            self.controller.save_visible_columns(selected)
             self.apply_column_visibility()
 
     def update_kpis(self) -> None:
-        counts: dict[str, int] = {}
-        for guest in self.guests:
-            counts[guest.room_type] = counts.get(guest.room_type, 0) + 1
-        self.arrivals_kpi.setText(f"Arrivées : {len(self.guests)}")
-        self.people_kpi.setText(f"Personnes : {sum(g.people_count for g in self.guests)}")
-        self.room_kpi.setText("Types chambres : " + ", ".join(f"{k or '—'} {v}" for k, v in counts.items()))
+        counts = self.view_model.room_type_counts
+        self.arrivals_kpi.setText(f"Arrivées : {self.view_model.row_count}")
+        self.people_kpi.setText(f"Personnes : {self.view_model.people_count}")
+        self.room_kpi.setText("Types chambres : " + ", ".join(f"{k} {v}" for k, v in counts.items()))
 
     def import_xml(self) -> None:
         path, _ = QFileDialog.getOpenFileName(self, "Importer un XML Opera Cloud", "", "XML (*.xml)")
@@ -314,7 +310,7 @@ class MainWindow(QMainWindow):
         self.progress.setValue(current)
 
     def on_import_finished(self, guests: list[Guest]) -> None:
-        count = self.repository.replace_import(guests)
+        count = self.controller.replace_import(guests)
         self.progress.setVisible(False)
         self.thread.quit()
         self.thread.wait()
@@ -337,7 +333,7 @@ class MainWindow(QMainWindow):
         gender_widget = self.table.cellWidget(row, 3)
         language_widget = self.table.cellWidget(row, 4)
         if isinstance(gender_widget, QComboBox) and isinstance(language_widget, QComboBox):
-            self.repository.update_guest_language_gender(
+            self.controller.update_guest_language_gender(
                 guest.reservation_id,
                 Language(language_widget.currentText()),
                 Gender(gender_widget.currentText()),
@@ -365,10 +361,7 @@ class MainWindow(QMainWindow):
         )
         if not path:
             return
-        if kind == "xlsx":
-            export_arrivals_xlsx(self.guests, path)
-        else:
-            export_arrivals_docx(self.guests, path)
+        self.controller.export_arrivals(kind, self.guests, path)
         QMessageBox.information(self, "Export terminé", f"Fichier créé : {path}")
 
     def purge_import(self) -> None:
@@ -377,7 +370,7 @@ class MainWindow(QMainWindow):
             "Purger les données",
             "Supprimer toutes les arrivées stockées localement ?",
         ) == QMessageBox.StandardButton.Yes:
-            self.repository.clear_guests()
+            self.controller.clear_arrivals()
             self.reload_table()
 
     def preview_selection(self) -> None:
@@ -405,20 +398,10 @@ class MainWindow(QMainWindow):
         QDesktopServices.openUrl(target.as_uri())
 
     def render(self, kind: str, guests: list[Guest]) -> str:
-        context = ReportContext(
-            hotel_name=self.app_settings.hotel_name,
-            manager_name=self.app_settings.manager_name,
-            manager_role_fr=self.app_settings.manager_role_fr,
-            logo_path=self.app_settings.logo_path,
-        )
-        if kind == "key":
-            return self.renderer.render_key_cards(guests, context)
-        if kind == "letter":
-            return self.renderer.render_welcome_letters(guests, context)
-        return self.renderer.render_arrivals_list(guests)
+        return self.controller.render_report(kind, guests)
 
     def apply_theme(self, theme: str) -> None:
-        self.repository.set_setting("theme", theme)
+        self.controller.save_theme(theme)
         if theme == "dark":
             self.setStyleSheet("""
                 QMainWindow, QWidget { background: #151922; color: #f1f5f9; }
