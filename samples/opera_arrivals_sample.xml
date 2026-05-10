@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<arrivals>
+  <reservation>
+    <confirmation_no>ABC123</confirmation_no>
+    <guest_name>durand, jean</guest_name>
+    <title>M</title>
+    <arrival>2026-05-11</arrival>
+    <departure>2026-05-13</departure>
+    <room>204</room>
+    <room_type>CLA</room_type>
+    <adults>2</adults>
+  </reservation>
+  <reservation>
+    <confirmation_no>XYZ999</confirmation_no>
+    <firstName>Maria</firstName>
+    <lastName>Garcia</lastName>
+    <title>Sra.</title>
+    <arrival>2026-05-11</arrival>
+    <departure>2026-05-12</departure>
+    <room>305</room>
+    <room_type>SOC</room_type>
+    <adults>1</adults>
+  </reservation>
+</arrivals>

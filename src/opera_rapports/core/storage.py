@@ -112,6 +112,10 @@ class Repository:
                 (language.value, gender.value, reservation_id),
             )
 
+    def clear_guests(self) -> None:
+        with self.connection:
+            self.connection.execute("DELETE FROM guests")
+
     def get_setting(self, key: str, default: object = None) -> object:
         row = self.connection.execute("SELECT value_json FROM settings WHERE key = ?", (key,)).fetchone()
         return json.loads(row["value_json"]) if row else default

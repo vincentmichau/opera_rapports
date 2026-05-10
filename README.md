@@ -22,6 +22,22 @@ pip install -e .[dev]
 opera-rapports
 ```
 
+
+## Export et exploitation
+
+- Le menu **Application** permet maintenant d'exporter la liste filtrée en `.xlsx` ou `.docx` sans nécessiter Microsoft Office sur le poste.
+- Le bouton **Colonnes** permet de mémoriser localement les colonnes visibles pour simplifier l'écran des utilisateurs néophytes.
+- Une purge locale est disponible pour supprimer les arrivées importées après traitement.
+- Un fichier d'exemple est fourni dans `samples/opera_arrivals_sample.xml` pour tester le parcours complet.
+
+## Créer un ZIP pour GitHub
+
+```bash
+python tools/create_github_zip.py
+```
+
+Le script crée `opera_rapports_github.zip` avec les fichiers suivis par Git, prêt à déposer sur GitHub si le push direct est bloqué par le réseau.
+
 ## Packaging Windows
 
 Le dépôt contient un workflow GitHub Actions qui produit trois familles d'artefacts :

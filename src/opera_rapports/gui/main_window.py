@@ -9,9 +9,13 @@ from PySide6.QtGui import QAction, QDesktopServices, QIcon
 from PySide6.QtPrintSupport import QPrintDialog, QPrinter
 from PySide6.QtWidgets import (
     QApplication,
+    QCheckBox,
     QComboBox,
     QDateEdit,
+    QDialog,
+    QDialogButtonBox,
     QFileDialog,
+    QGridLayout,
     QHBoxLayout,
     QLabel,
     QMainWindow,
@@ -27,6 +31,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from opera_rapports.core.exports import export_arrivals_docx, export_arrivals_xlsx
 from opera_rapports.core.models import Gender, Guest, Language
 from opera_rapports.core.reports import ReportContext, ReportRenderer
 from opera_rapports.core.storage import Repository
@@ -87,9 +92,20 @@ class MainWindow(QMainWindow):
         self.light_action.triggered.connect(lambda: self.apply_theme("light"))
         self.dark_action = QAction("Thème sombre", self)
         self.dark_action.triggered.connect(lambda: self.apply_theme("dark"))
+        self.export_xlsx_action = QAction("Exporter Excel (.xlsx)", self)
+        self.export_xlsx_action.triggered.connect(lambda: self.export_arrivals("xlsx"))
+        self.export_docx_action = QAction("Exporter Word (.docx)", self)
+        self.export_docx_action.triggered.connect(lambda: self.export_arrivals("docx"))
+        self.purge_action = QAction("Purger les données importées", self)
+        self.purge_action.triggered.connect(self.purge_import)
         menu = self.menuBar().addMenu("Application")
         menu.addAction(self.light_action)
         menu.addAction(self.dark_action)
+        menu.addSeparator()
+        menu.addAction(self.export_xlsx_action)
+        menu.addAction(self.export_docx_action)
+        menu.addSeparator()
+        menu.addAction(self.purge_action)
         menu.addSeparator()
         menu.addAction(self.quit_action)
 
@@ -111,6 +127,9 @@ class MainWindow(QMainWindow):
         tomorrow_button.clicked.connect(lambda: self.date_filter.setDate(QDate.currentDate().addDays(1)))
         toolbar.addWidget(today_button)
         toolbar.addWidget(tomorrow_button)
+        columns_button = QPushButton("Colonnes")
+        columns_button.clicked.connect(self.choose_columns)
+        toolbar.addWidget(columns_button)
         toolbar.addSeparator()
         toolbar.addWidget(QLabel("Modèle : "))
         self.model_combo = QComboBox()
@@ -186,8 +205,39 @@ class MainWindow(QMainWindow):
                     value = getattr(guest, attr)
                     self.table.setItem(row, col, QTableWidgetItem(str(value or "")))
         self.table.blockSignals(False)
+        self.apply_column_visibility()
         self.rows_label.setText(f"{len(self.guests)} ligne(s) importée(s)")
         self.update_kpis()
+
+    def apply_column_visibility(self) -> None:
+        visible = self.repository.get_setting("visible_columns", [key for key, _label in COLUMNS])
+        if not isinstance(visible, list):
+            visible = [key for key, _label in COLUMNS]
+        for index, (key, _label) in enumerate(COLUMNS):
+            self.table.setColumnHidden(index, key not in visible)
+
+    def choose_columns(self) -> None:
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Colonnes affichées")
+        layout = QGridLayout(dialog)
+        visible = set(self.repository.get_setting("visible_columns", [key for key, _label in COLUMNS]))
+        checks: list[tuple[str, QCheckBox]] = []
+        for row, (key, label) in enumerate(COLUMNS):
+            check = QCheckBox(label)
+            check.setChecked(key in visible)
+            layout.addWidget(check, row // 2, row % 2)
+            checks.append((key, check))
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        buttons.accepted.connect(dialog.accept)
+        buttons.rejected.connect(dialog.reject)
+        layout.addWidget(buttons, (len(COLUMNS) + 1) // 2, 0, 1, 2)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            selected = [key for key, check in checks if check.isChecked()]
+            if not selected:
+                QMessageBox.warning(self, "Colonnes", "Au moins une colonne doit rester visible.")
+                return
+            self.repository.set_setting("visible_columns", selected)
+            self.apply_column_visibility()
 
     def update_kpis(self) -> None:
         counts: dict[str, int] = {}
@@ -254,6 +304,34 @@ class MainWindow(QMainWindow):
     def current_selection(self) -> list[Guest]:
         rows = sorted({index.row() for index in self.table.selectedIndexes()})
         return [self.guests[row] for row in rows] or self.guests[:1]
+
+    def export_arrivals(self, kind: str) -> None:
+        if not self.guests:
+            QMessageBox.information(self, "Export", "Aucune arrivée à exporter pour la date sélectionnée.")
+            return
+        extension = "xlsx" if kind == "xlsx" else "docx"
+        path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Exporter les arrivées",
+            f"arrivees_{self.selected_arrival_date():%Y%m%d}.{extension}",
+            f"Fichiers {extension.upper()} (*.{extension})",
+        )
+        if not path:
+            return
+        if kind == "xlsx":
+            export_arrivals_xlsx(self.guests, path)
+        else:
+            export_arrivals_docx(self.guests, path)
+        QMessageBox.information(self, "Export terminé", f"Fichier créé : {path}")
+
+    def purge_import(self) -> None:
+        if QMessageBox.question(
+            self,
+            "Purger les données",
+            "Supprimer toutes les arrivées stockées localement ?",
+        ) == QMessageBox.StandardButton.Yes:
+            self.repository.clear_guests()
+            self.reload_table()
 
     def preview_selection(self) -> None:
         model = self.model_combo.currentText()
