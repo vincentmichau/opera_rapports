@@ -26,3 +26,15 @@
 - L'application conserve uniquement les données opérationnelles nécessaires à l'impression.
 - Les données restent sur le poste utilisateur dans une base SQLite locale.
 - Menu **Application → Purger les données importées** supprime toutes les arrivées stockées localement.
+
+
+## 5. Paramètres hôtel
+
+Le menu **Application → Paramètres hôtel** permet de personnaliser :
+
+- le nom de l'hôtel imprimé sur les documents ;
+- le nom de la directrice ou du directeur ;
+- la fonction affichée dans les welcome letters en français ;
+- l'imprimante favorite à documenter pour l'équipe ;
+- le chemin d'un logo à utiliser dans une future version ;
+- la durée de conservation locale avant purge automatique.

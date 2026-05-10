@@ -27,7 +27,8 @@ opera-rapports
 
 - Le menu **Application** permet maintenant d'exporter la liste filtrée en `.xlsx` ou `.docx` sans nécessiter Microsoft Office sur le poste.
 - Le bouton **Colonnes** permet de mémoriser localement les colonnes visibles pour simplifier l'écran des utilisateurs néophytes.
-- Une purge locale est disponible pour supprimer les arrivées importées après traitement.
+- Une purge locale est disponible pour supprimer les arrivées importées après traitement, avec une durée de conservation paramétrable.
+- Les paramètres hôtel permettent de personnaliser le nom de l’établissement, la signature et la fonction imprimée sur les welcome letters.
 - Un fichier d'exemple est fourni dans `samples/opera_arrivals_sample.xml` pour tester le parcours complet.
 
 ## Créer un ZIP pour GitHub

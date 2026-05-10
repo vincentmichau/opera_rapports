@@ -15,13 +15,16 @@ from PySide6.QtWidgets import (
     QDialog,
     QDialogButtonBox,
     QFileDialog,
+    QFormLayout,
     QGridLayout,
     QHBoxLayout,
     QLabel,
+    QLineEdit,
     QMainWindow,
     QMessageBox,
     QProgressBar,
     QPushButton,
+    QSpinBox,
     QStatusBar,
     QStyle,
     QTableWidget,
@@ -34,6 +37,7 @@ from PySide6.QtWidgets import (
 from opera_rapports.core.exports import export_arrivals_docx, export_arrivals_xlsx
 from opera_rapports.core.models import Gender, Guest, Language
 from opera_rapports.core.reports import ReportContext, ReportRenderer
+from opera_rapports.core.settings import AppSettings
 from opera_rapports.core.storage import Repository
 from opera_rapports.core.xml_importer import import_opera_xml
 
@@ -72,6 +76,8 @@ class MainWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
         self.repository = Repository()
+        self.app_settings = self.repository.get_app_settings()
+        self.repository.purge_imports_older_than(self.app_settings.retention_days)
         self.renderer = ReportRenderer()
         self.guests: list[Guest] = []
         self.setWindowTitle("Opera Rapports — Cartons de clés & Welcome letters")
@@ -92,6 +98,8 @@ class MainWindow(QMainWindow):
         self.light_action.triggered.connect(lambda: self.apply_theme("light"))
         self.dark_action = QAction("Thème sombre", self)
         self.dark_action.triggered.connect(lambda: self.apply_theme("dark"))
+        self.settings_action = QAction("Paramètres hôtel", self)
+        self.settings_action.triggered.connect(self.edit_app_settings)
         self.export_xlsx_action = QAction("Exporter Excel (.xlsx)", self)
         self.export_xlsx_action.triggered.connect(lambda: self.export_arrivals("xlsx"))
         self.export_docx_action = QAction("Exporter Word (.docx)", self)
@@ -101,6 +109,8 @@ class MainWindow(QMainWindow):
         menu = self.menuBar().addMenu("Application")
         menu.addAction(self.light_action)
         menu.addAction(self.dark_action)
+        menu.addSeparator()
+        menu.addAction(self.settings_action)
         menu.addSeparator()
         menu.addAction(self.export_xlsx_action)
         menu.addAction(self.export_docx_action)
@@ -208,6 +218,43 @@ class MainWindow(QMainWindow):
         self.apply_column_visibility()
         self.rows_label.setText(f"{len(self.guests)} ligne(s) importée(s)")
         self.update_kpis()
+
+    def edit_app_settings(self) -> None:
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Paramètres hôtel")
+        form = QFormLayout(dialog)
+        hotel_name = QLineEdit(self.app_settings.hotel_name)
+        manager_name = QLineEdit(self.app_settings.manager_name)
+        manager_role = QLineEdit(self.app_settings.manager_role_fr)
+        default_printer = QLineEdit(self.app_settings.default_printer)
+        logo_path = QLineEdit(self.app_settings.logo_path)
+        retention_days = QSpinBox()
+        retention_days.setRange(1, 365)
+        retention_days.setValue(self.app_settings.retention_days)
+        form.addRow("Nom de l'hôtel", hotel_name)
+        form.addRow("Nom directrice/directeur", manager_name)
+        form.addRow("Fonction FR", manager_role)
+        form.addRow("Imprimante favorite", default_printer)
+        form.addRow("Logo (chemin fichier)", logo_path)
+        form.addRow("Conservation locale (jours)", retention_days)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        buttons.accepted.connect(dialog.accept)
+        buttons.rejected.connect(dialog.reject)
+        form.addRow(buttons)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            self.app_settings = AppSettings(
+                hotel_name=hotel_name.text().strip() or "Votre Hôtel",
+                manager_name=manager_name.text().strip() or "La Directrice",
+                manager_role_fr=manager_role.text().strip() or "Directrice de l'hôtel",
+                default_printer=default_printer.text().strip(),
+                retention_days=retention_days.value(),
+                logo_path=logo_path.text().strip(),
+            )
+            self.repository.save_app_settings(self.app_settings)
+            purged = self.repository.purge_imports_older_than(self.app_settings.retention_days)
+            if purged:
+                self.reload_table()
+            QMessageBox.information(self, "Paramètres", "Paramètres enregistrés.")
 
     def apply_column_visibility(self) -> None:
         visible = self.repository.get_setting("visible_columns", [key for key, _label in COLUMNS])
@@ -358,7 +405,12 @@ class MainWindow(QMainWindow):
         QDesktopServices.openUrl(target.as_uri())
 
     def render(self, kind: str, guests: list[Guest]) -> str:
-        context = ReportContext(hotel_name="Votre Hôtel", manager_name="La Directrice")
+        context = ReportContext(
+            hotel_name=self.app_settings.hotel_name,
+            manager_name=self.app_settings.manager_name,
+            manager_role_fr=self.app_settings.manager_role_fr,
+            logo_path=self.app_settings.logo_path,
+        )
         if kind == "key":
             return self.renderer.render_key_cards(guests, context)
         if kind == "letter":

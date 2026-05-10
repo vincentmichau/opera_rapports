@@ -13,6 +13,8 @@ from opera_rapports.core.models import Guest, Language
 class ReportContext:
     hotel_name: str = "l'Hôtel"
     manager_name: str = "La Direction"
+    manager_role_fr: str = "Directrice de l'hôtel"
+    logo_path: str = ""
 
 
 def _css() -> str:
@@ -56,12 +58,13 @@ class ReportRenderer:
                 arrival=short_date(guest.arrival_date, guest.language),
                 departure=short_date(guest.departure_date, guest.language),
             )
+            manager_role = context.manager_role_fr if guest.language == Language.FR else MANAGER_ROLE[guest.language]
             sheets.append(f"""
 <section class="sheet" lang="{guest.language.value}">
   <div class="date">{escape(long_date(guest.arrival_date, guest.language))}</div>
   <div class="salute">{escape(salutation(guest.language, guest.gender))} {escape(guest.last_name)},</div>
   <p class="message">{escape(text)}</p>
-  <div class="signature"><strong>{escape(context.manager_name)}</strong><br><span class="muted">{escape(MANAGER_ROLE[guest.language])}</span></div>
+  <div class="signature"><strong>{escape(context.manager_name)}</strong><br><span class="muted">{escape(manager_role)}</span></div>
 </section>""")
         return f"""<!doctype html>
 <html lang="fr"><head><meta charset="utf-8"><title>Welcome letters</title><style>

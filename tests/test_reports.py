@@ -35,3 +35,12 @@ def test_welcome_letter_contains_dl_print_size() -> None:
 
     assert "@page { size: 220mm 110mm landscape" in html
     assert "Votre chambre 204 vous attend" in html
+
+
+def test_welcome_letter_uses_custom_french_manager_role() -> None:
+    html = ReportRenderer().render_welcome_letters(
+        [sample_guest()],
+        ReportContext("Grand Hôtel", "Mme Martin", "Directrice générale"),
+    )
+
+    assert "Directrice générale" in html

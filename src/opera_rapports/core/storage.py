@@ -9,6 +9,7 @@ from pathlib import Path
 from platformdirs import user_data_dir
 
 from opera_rapports.core.models import Gender, Guest, Language
+from opera_rapports.core.settings import AppSettings
 
 APP_NAME = "OperaRapports"
 
@@ -115,6 +116,20 @@ class Repository:
     def clear_guests(self) -> None:
         with self.connection:
             self.connection.execute("DELETE FROM guests")
+
+    def purge_imports_older_than(self, days: int) -> int:
+        with self.connection:
+            cursor = self.connection.execute(
+                "DELETE FROM guests WHERE imported_at < datetime('now', ?)",
+                (f"-{max(int(days), 1)} days",),
+            )
+        return cursor.rowcount
+
+    def get_app_settings(self) -> AppSettings:
+        return AppSettings.from_mapping(self.get_setting("app_settings", {}))
+
+    def save_app_settings(self, settings: AppSettings) -> None:
+        self.set_setting("app_settings", settings.to_mapping())
 
     def get_setting(self, key: str, default: object = None) -> object:
         row = self.connection.execute("SELECT value_json FROM settings WHERE key = ?", (key,)).fetchone()
