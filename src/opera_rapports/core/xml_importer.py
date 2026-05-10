@@ -73,7 +73,16 @@ def _candidate_records(root: ET.Element) -> list[ET.Element]:
     return leaf_parents or [root]
 
 
+def parse_int(value: str, default: int = 0) -> int:
+    try:
+        return int(value.strip()) if value.strip() else default
+    except ValueError:
+        return default
+
+
 def import_opera_xml(path: str | Path, progress: ProgressCallback | None = None) -> list[Guest]:
+    # ElementTree keeps the importer dependency-free and adequate for Opera XML exports.
+    # Invalid numeric fields are tolerated because hotel reports can contain blanks or labels.
     tree = ET.parse(path)
     records = _candidate_records(tree.getroot())
     guests: list[Guest] = []
@@ -96,8 +105,8 @@ def import_opera_xml(path: str | Path, progress: ProgressCallback | None = None)
             departure_date=parse_date(_pick(raw, "departure_date")),
             room_number=_pick(raw, "room_number"),
             room_type=_pick(raw, "room_type"),
-            adults=int(_pick(raw, "adults") or 1),
-            children=int(_pick(raw, "children") or 0),
+            adults=parse_int(_pick(raw, "adults"), 1),
+            children=parse_int(_pick(raw, "children"), 0),
             raw=raw,
         )
         if guest.last_name or guest.room_number or guest.arrival_date:

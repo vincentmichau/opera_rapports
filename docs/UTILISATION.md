@@ -38,6 +38,7 @@ Le menu **Application → Aide rapide** rappelle les actions essentielles.
 - L'application conserve uniquement les données opérationnelles nécessaires à l'impression.
 - Les données restent sur le poste utilisateur dans une base SQLite locale.
 - Menu **Application → Purger les données importées** supprime toutes les arrivées stockées localement.
+- Un journal d'audit local enregistre uniquement les actions techniques et les volumes, sans noms de clients.
 
 
 ## 7. Paramètres hôtel

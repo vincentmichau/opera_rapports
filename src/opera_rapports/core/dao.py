@@ -5,6 +5,7 @@ import sqlite3
 from collections.abc import Iterable
 from datetime import date
 from pathlib import Path
+from opera_rapports.core.audit import AuditEvent
 from opera_rapports.core.models import Gender, Guest, Language
 
 SCHEMA = """
@@ -29,6 +30,12 @@ CREATE TABLE IF NOT EXISTS guests (
 CREATE TABLE IF NOT EXISTS settings (
   key TEXT PRIMARY KEY,
   value_json TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS audit_log (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  action TEXT NOT NULL,
+  details TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL
 );
 """
 
@@ -147,6 +154,35 @@ class SettingsDAO:
             )
 
 
+class AuditDAO:
+    """DAO for local non-sensitive audit events."""
+
+    def __init__(self, connection: sqlite3.Connection) -> None:
+        self.connection = connection
+
+    def record(self, event: AuditEvent) -> None:
+        with self.connection:
+            self.connection.execute(
+                "INSERT INTO audit_log(action, details, created_at) VALUES(?, ?, ?)",
+                (event.action, event.details, event.created_at),
+            )
+
+    def list_recent(self, limit: int = 50) -> list[AuditEvent]:
+        rows = self.connection.execute(
+            "SELECT action, details, created_at FROM audit_log ORDER BY id DESC LIMIT ?",
+            (max(int(limit), 1),),
+        ).fetchall()
+        return [AuditEvent(action=row["action"], details=row["details"], created_at=row["created_at"]) for row in rows]
+
+    def purge_older_than(self, days: int) -> int:
+        with self.connection:
+            cursor = self.connection.execute(
+                "DELETE FROM audit_log WHERE created_at < datetime('now', ?)",
+                (f"-{max(int(days), 1)} days",),
+            )
+        return cursor.rowcount
+
+
 class DAOFactory:
     """Factory centralising SQLite connection creation and DAO construction."""
 
@@ -158,6 +194,7 @@ class DAOFactory:
         self.connection.executescript(SCHEMA)
         self._guest_dao: GuestDAO | None = None
         self._settings_dao: SettingsDAO | None = None
+        self._audit_dao: AuditDAO | None = None
 
     @property
     def guests(self) -> GuestDAO:
@@ -170,6 +207,12 @@ class DAOFactory:
         if self._settings_dao is None:
             self._settings_dao = SettingsDAO(self.connection)
         return self._settings_dao
+
+    @property
+    def audit(self) -> AuditDAO:
+        if self._audit_dao is None:
+            self._audit_dao = AuditDAO(self.connection)
+        return self._audit_dao
 
     def close(self) -> None:
         self.connection.close()

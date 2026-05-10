@@ -6,6 +6,7 @@ from pathlib import Path
 
 from platformdirs import user_data_dir
 
+from opera_rapports.core.audit import AuditEvent
 from opera_rapports.core.dao import DAOFactory
 from opera_rapports.core.models import Gender, Guest, Language
 from opera_rapports.core.settings import AppSettings
@@ -27,12 +28,15 @@ class Repository:
         self.dao_factory = dao_factory or DAOFactory(self.path)
         self.guests = self.dao_factory.guests
         self.settings = self.dao_factory.settings
+        self.audit = self.dao_factory.audit
 
     def close(self) -> None:
         self.dao_factory.close()
 
     def replace_import(self, guests: Iterable[Guest]) -> int:
-        return self.guests.replace_all(guests)
+        count = self.guests.replace_all(guests)
+        self.record_audit("import_xml", f"{count} arrival rows imported")
+        return count
 
     def list_guests(self, arrival: date | None = None) -> list[Guest]:
         return self.guests.list(arrival)
@@ -42,9 +46,14 @@ class Repository:
 
     def clear_guests(self) -> None:
         self.guests.clear()
+        self.record_audit("purge_arrivals", "all local arrival rows removed")
 
     def purge_imports_older_than(self, days: int) -> int:
-        return self.guests.purge_older_than(days)
+        purged = self.guests.purge_older_than(days)
+        self.audit.purge_older_than(max(int(days), 1) * 4)
+        if purged:
+            self.record_audit("retention_purge", f"{purged} old arrival rows removed")
+        return purged
 
     def get_app_settings(self) -> AppSettings:
         return AppSettings.from_mapping(self.get_setting("app_settings", {}))
@@ -57,3 +66,9 @@ class Repository:
 
     def set_setting(self, key: str, value: object) -> None:
         self.settings.set(key, value)
+
+    def record_audit(self, action: str, details: str = "") -> None:
+        self.audit.record(AuditEvent.create(action, details))
+
+    def recent_audit_events(self, limit: int = 50) -> list[AuditEvent]:
+        return self.audit.list_recent(limit)

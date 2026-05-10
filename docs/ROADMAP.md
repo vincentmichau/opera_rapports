@@ -19,7 +19,7 @@ Concepteur déjà amorcé : catalogue de modèles, duplication des modèles int�
 ## Priorité 3 — Exports et conformité
 
 - Export PDF natif validé pour les formats A6, DL et A4.
-- Journal local des imports/exports sans données sensibles inutiles.
+- Journal local des imports/exports sans données sensibles inutiles : première base ajoutée, à exposer ensuite dans un écran administrateur.
 - Politique de purge automatique configurable.
 - Tests de packaging Windows sur runner GitHub Actions et machine Windows 11 réelle.
 

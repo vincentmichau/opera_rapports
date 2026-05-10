@@ -590,6 +590,7 @@ class MainWindow(QMainWindow):
             dialog = QPrintDialog(printer, self)
             if dialog.exec() == QPrintDialog.DialogCode.Accepted:
                 QMessageBox.information(self, "Impression", "Document préparé. Utilisez l'aperçu HTML pour contrôle qualité dans cette préversion.")
+        self.controller.record_print_preparation(kind, len(guests))
         target = Path(tempfile.gettempdir()) / f"opera_rapports_{kind}.html"
         target.write_text(html, encoding="utf-8")
         QDesktopServices.openUrl(target.as_uri())

@@ -45,6 +45,7 @@ class AppController:
 
     def update_guest_language_gender(self, reservation_id: str, language: Language, gender: Gender) -> None:
         self.repository.update_guest_language_gender(reservation_id, language, gender)
+        self.repository.record_audit("manual_guest_correction", "language/gender adjusted")
 
     def clear_arrivals(self) -> None:
         self.repository.clear_guests()
@@ -84,8 +85,14 @@ class AppController:
 
     def export_arrivals(self, kind: str, guests: list[Guest], target: str | Path) -> Path:
         if kind == "xlsx":
-            return export_arrivals_xlsx(guests, target)
-        return export_arrivals_docx(guests, target)
+            exported = export_arrivals_xlsx(guests, target)
+        else:
+            exported = export_arrivals_docx(guests, target)
+        self.repository.record_audit("export_arrivals", f"{kind}:{len(guests)} rows")
+        return exported
+
+    def record_print_preparation(self, kind: str, count: int) -> None:
+        self.repository.record_audit("print_prepared", f"{kind}:{count} rows")
 
     def load_template_catalog(self) -> TemplateCatalog:
         return TemplateCatalog.from_settings(self.repository.get_setting("document_templates", None))
@@ -97,11 +104,13 @@ class AppController:
     def save_document_template(self, template: DocumentTemplate) -> None:
         self.template_catalog.upsert(template)
         self.repository.set_setting("document_templates", self.template_catalog.to_settings())
+        self.repository.record_audit("template_saved", template.kind.value)
 
     def delete_document_template(self, template_id: str) -> bool:
         deleted = self.template_catalog.delete(template_id)
         if deleted:
             self.repository.set_setting("document_templates", self.template_catalog.to_settings())
+            self.repository.record_audit("template_deleted", template_id)
         return deleted
 
     def duplicate_document_template(self, template_id: str) -> DocumentTemplate | None:
