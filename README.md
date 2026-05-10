@@ -4,7 +4,7 @@ Application desktop Windows 11 en Python pour la réception et le night audit d'
 
 ## Objectifs fonctionnels
 
-- Interface moderne PySide6 avec ruban, filtres de date, choix de modèle, actions d'impression, menu thème clair/sombre et barre d'état.
+- Interface moderne PySide6 avec ruban, aide rapide, message d'écran vide, filtres de date, choix de modèle, actions d'impression, menu thème clair/sombre et barre d'état.
 - Import XML Opera Cloud non bloquant avec barre de progression.
 - Normalisation RGPD-friendly : stockage local SQLite, données limitées à l'import opérationnel, remplacement complet à chaque import.
 - Parsing des noms : nom en majuscules, prénom en casse titre, civilité et langue déduites puis rectifiables.

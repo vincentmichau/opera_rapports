@@ -29,6 +29,7 @@ from PySide6.QtWidgets import (
     QStyle,
     QTableWidget,
     QTableWidgetItem,
+    QTextBrowser,
     QToolBar,
     QVBoxLayout,
     QWidget,
@@ -36,6 +37,7 @@ from PySide6.QtWidgets import (
 
 from opera_rapports.core.models import Gender, Guest, Language
 from opera_rapports.core.settings import AppSettings
+from opera_rapports.core.ux import EMPTY_STATE_TEXT, HELP_HTML, quick_start_text
 from opera_rapports.core.xml_importer import import_opera_xml
 from opera_rapports.mvc.controllers import AppController
 from opera_rapports.mvc.models import ArrivalTableViewModel
@@ -104,6 +106,8 @@ class MainWindow(QMainWindow):
         self.export_docx_action.triggered.connect(lambda: self.export_arrivals("docx"))
         self.purge_action = QAction("Purger les données importées", self)
         self.purge_action.triggered.connect(self.purge_import)
+        self.help_action = QAction("Aide rapide", self)
+        self.help_action.triggered.connect(self.show_quick_help)
         menu = self.menuBar().addMenu("Application")
         menu.addAction(self.light_action)
         menu.addAction(self.dark_action)
@@ -115,6 +119,8 @@ class MainWindow(QMainWindow):
         menu.addSeparator()
         menu.addAction(self.purge_action)
         menu.addSeparator()
+        menu.addAction(self.help_action)
+        menu.addSeparator()
         menu.addAction(self.quit_action)
 
     def _build_toolbar(self) -> None:
@@ -122,11 +128,13 @@ class MainWindow(QMainWindow):
         toolbar.setMovable(False)
         toolbar.setIconSize(self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogDetailedView).actualSize(toolbar.iconSize()))
         self.addToolBar(toolbar)
+        self.import_action.setStatusTip("Importer le fichier XML d'arrivées Opera Cloud")
         toolbar.addAction(self.import_action)
         toolbar.addSeparator()
         toolbar.addWidget(QLabel("Date d'arrivée : "))
         self.date_filter = QDateEdit(QDate.currentDate().addDays(1))
         self.date_filter.setCalendarPopup(True)
+        self.date_filter.setToolTip("Filtrer les arrivées par date")
         self.date_filter.dateChanged.connect(self.reload_table)
         toolbar.addWidget(self.date_filter)
         today_button = QPushButton("Aujourd'hui")
@@ -136,6 +144,7 @@ class MainWindow(QMainWindow):
         toolbar.addWidget(today_button)
         toolbar.addWidget(tomorrow_button)
         columns_button = QPushButton("Colonnes")
+        columns_button.setToolTip("Choisir les colonnes visibles et mémoriser ce choix")
         columns_button.clicked.connect(self.choose_columns)
         toolbar.addWidget(columns_button)
         toolbar.addSeparator()
@@ -143,18 +152,22 @@ class MainWindow(QMainWindow):
         self.model_combo = QComboBox()
         self.model_combo.addItems(["Carton de clé A6", "Welcome letter DL", "Liste des arrivées"])
         toolbar.addWidget(self.model_combo)
-        print_button = QPushButton("Imprimer la sélection")
-        print_button.clicked.connect(self.print_selection)
-        print_all_cards = QPushButton("Tous les cartons")
-        print_all_cards.clicked.connect(lambda: self.preview_or_print("key", self.guests, print_now=True))
-        print_all_letters = QPushButton("Toutes les lettres")
-        print_all_letters.clicked.connect(lambda: self.preview_or_print("letter", self.guests, print_now=True))
-        preview_button = QPushButton("Aperçu")
-        preview_button.clicked.connect(self.preview_selection)
-        toolbar.addWidget(print_button)
-        toolbar.addWidget(print_all_cards)
-        toolbar.addWidget(print_all_letters)
-        toolbar.addWidget(preview_button)
+        self.print_button = QPushButton("Imprimer la sélection")
+        self.print_button.setToolTip("Imprimer le modèle choisi pour la ligne sélectionnée")
+        self.print_button.clicked.connect(self.print_selection)
+        self.print_all_cards_button = QPushButton("Tous les cartons")
+        self.print_all_cards_button.setToolTip("Imprimer tous les cartons de clés de la date affichée")
+        self.print_all_cards_button.clicked.connect(lambda: self.preview_or_print("key", self.guests, print_now=True))
+        self.print_all_letters_button = QPushButton("Toutes les lettres")
+        self.print_all_letters_button.setToolTip("Imprimer toutes les welcome letters de la date affichée")
+        self.print_all_letters_button.clicked.connect(lambda: self.preview_or_print("letter", self.guests, print_now=True))
+        self.preview_button = QPushButton("Aperçu")
+        self.preview_button.setToolTip("Ouvrir un aperçu avant impression")
+        self.preview_button.clicked.connect(self.preview_selection)
+        toolbar.addWidget(self.print_button)
+        toolbar.addWidget(self.print_all_cards_button)
+        toolbar.addWidget(self.print_all_letters_button)
+        toolbar.addWidget(self.preview_button)
         spacer = QWidget()
         spacer.setMinimumWidth(20)
         toolbar.addWidget(spacer)
@@ -163,6 +176,10 @@ class MainWindow(QMainWindow):
     def _build_content(self) -> None:
         central = QWidget(self)
         layout = QVBoxLayout(central)
+        self.guidance_label = QLabel(quick_start_text())
+        self.guidance_label.setObjectName("guidance")
+        self.guidance_label.setWordWrap(True)
+        layout.addWidget(self.guidance_label)
         kpi_layout = QHBoxLayout()
         self.arrivals_kpi = QLabel("Arrivées : 0")
         self.people_kpi = QLabel("Personnes : 0")
@@ -171,6 +188,10 @@ class MainWindow(QMainWindow):
             widget.setObjectName("kpi")
             kpi_layout.addWidget(widget)
         layout.addLayout(kpi_layout)
+        self.empty_state_label = QLabel(EMPTY_STATE_TEXT)
+        self.empty_state_label.setObjectName("emptyState")
+        self.empty_state_label.setWordWrap(True)
+        layout.addWidget(self.empty_state_label)
         self.table = QTableWidget(0, len(COLUMNS), self)
         self.table.setHorizontalHeaderLabels([label for _, label in COLUMNS])
         self.table.setSortingEnabled(True)
@@ -216,7 +237,37 @@ class MainWindow(QMainWindow):
         self.table.blockSignals(False)
         self.apply_column_visibility()
         self.rows_label.setText(f"{len(self.guests)} ligne(s) importée(s)")
+        self.update_empty_state()
+        self.update_action_state()
         self.update_kpis()
+
+    def update_empty_state(self) -> None:
+        has_rows = bool(self.guests)
+        self.empty_state_label.setVisible(not has_rows)
+        if has_rows:
+            self.status.showMessage("Prêt : sélectionnez une ligne, vérifiez la langue puis imprimez ou exportez.")
+        else:
+            self.status.showMessage(EMPTY_STATE_TEXT)
+
+    def update_action_state(self) -> None:
+        has_rows = bool(self.guests)
+        for widget in (self.print_button, self.print_all_cards_button, self.print_all_letters_button, self.preview_button):
+            widget.setEnabled(has_rows)
+        self.export_xlsx_action.setEnabled(has_rows)
+        self.export_docx_action.setEnabled(has_rows)
+
+    def show_quick_help(self) -> None:
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Aide rapide")
+        layout = QVBoxLayout(dialog)
+        browser = QTextBrowser()
+        browser.setHtml(HELP_HTML)
+        layout.addWidget(browser)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok)
+        buttons.accepted.connect(dialog.accept)
+        layout.addWidget(buttons)
+        dialog.resize(560, 360)
+        dialog.exec()
 
     def edit_app_settings(self) -> None:
         dialog = QDialog(self)
@@ -315,7 +366,7 @@ class MainWindow(QMainWindow):
         self.thread.quit()
         self.thread.wait()
         self.reload_table()
-        QMessageBox.information(self, "Import terminé", f"{count} arrivée(s) importée(s).")
+        QMessageBox.information(self, "Import terminé", f"{count} arrivée(s) importée(s). Vérifiez la langue puis imprimez.")
 
     def on_import_failed(self, message: str) -> None:
         self.progress.setVisible(False)
@@ -350,7 +401,7 @@ class MainWindow(QMainWindow):
 
     def export_arrivals(self, kind: str) -> None:
         if not self.guests:
-            QMessageBox.information(self, "Export", "Aucune arrivée à exporter pour la date sélectionnée.")
+            QMessageBox.information(self, "Export", EMPTY_STATE_TEXT)
             return
         extension = "xlsx" if kind == "xlsx" else "docx"
         path, _ = QFileDialog.getSaveFileName(
@@ -408,10 +459,12 @@ class MainWindow(QMainWindow):
                 QTableWidget { background: #1f2633; gridline-color: #394152; }
                 QHeaderView::section, QToolBar, QMenuBar { background: #252d3b; color: #f1f5f9; }
                 QLabel#kpi { padding: 12px; border-radius: 8px; background: #243047; font-weight: 700; }
+                QLabel#guidance, QLabel#emptyState { padding: 12px; border-radius: 8px; background: #1f2937; color: #e5e7eb; }
             """)
         else:
             self.setStyleSheet("""
                 QLabel#kpi { padding: 12px; border-radius: 8px; background: #eef4ff; color: #1e3a8a; font-weight: 700; }
+                QLabel#guidance, QLabel#emptyState { padding: 12px; border-radius: 8px; background: #fff7ed; color: #7c2d12; }
             """)
 
 
