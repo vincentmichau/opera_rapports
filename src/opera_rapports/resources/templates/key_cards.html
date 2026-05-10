@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Cartons de clés</title>
+<style>
+{% include 'base_print.css' %}
+@page { size: A6 landscape; margin: 0; }
+.sheet { width: 148mm; height: 105mm; padding: 13mm 14mm; display: flex; flex-direction: column; justify-content: space-between; border: 1px solid #e8dfd0; }
+.guest { font-family: 'MV Boli', 'Segoe Print', cursive; font-size: 22pt; }
+.room { font-size: 54pt; font-weight: 700; color: #9b7a36; line-height: 1; }
+.dates { font-size: 13pt; }
+.roomtype { font-size: 11pt; text-transform: uppercase; letter-spacing: .08em; }
+@media print { body { margin: 0; } .sheet { border: 0; } }
+</style>
+</head>
+<body>
+{% for guest in guests %}
+<section class="sheet">
+  <header class="hotel">{{ context.hotel_name }}</header>
+  <main>
+    <div class="guest">{{ salutation(guest.language, guest.gender) }} {{ guest.last_name }}</div>
+    <div class="room">{{ guest.room_number }}</div>
+    <div class="roomtype muted">{{ room_type_label(guest.room_type, guest.language) }}</div>
+  </main>
+  <footer class="dates">{{ short_date(guest.arrival_date, guest.language) }} → {{ short_date(guest.departure_date, guest.language) }}</footer>
+</section>
+{% endfor %}
+</body>
+</html>

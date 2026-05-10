@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Product Id="*" Name="Opera Rapports" Language="1036" Version="0.1.0" Manufacturer="Opera Rapports" UpgradeCode="f8b24ef7-648a-4d5f-9e8a-45cf7f6d2513">
+    <Package InstallerVersion="500" Compressed="yes" InstallScope="perMachine" Platform="x64" />
+    <MajorUpgrade DowngradeErrorMessage="Une version plus récente est déjà installée." />
+    <MediaTemplate EmbedCab="yes" />
+    <Feature Id="ProductFeature" Title="Opera Rapports" Level="1">
+      <ComponentGroupRef Id="AppFiles" />
+    </Feature>
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="ProgramFiles64Folder">
+        <Directory Id="INSTALLFOLDER" Name="Opera Rapports" />
+      </Directory>
+      <Directory Id="ProgramMenuFolder">
+        <Directory Id="ApplicationProgramsFolder" Name="Opera Rapports" />
+      </Directory>
+    </Directory>
+  </Product>
+</Wix>

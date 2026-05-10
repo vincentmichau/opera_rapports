@@ -1,0 +1,40 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "opera-rapports"
+version = "0.1.0"
+description = "Application Windows 11 pour générer cartons de clés et welcome letters depuis des exports XML Opera Cloud."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Opera Rapports" }]
+dependencies = [
+  "PySide6>=6.7",
+  "python-docx>=1.1",
+  "openpyxl>=3.1",
+  "platformdirs>=4.2",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.2",
+  "ruff>=0.5",
+  "mypy>=1.10",
+  "pyinstaller>=6.9",
+]
+
+[project.scripts]
+opera-rapports = "opera_rapports.app:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/opera_rapports"]
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Welcome letters</title>
+<style>
+{% include 'base_print.css' %}
+@page { size: 220mm 110mm landscape; margin: 0; }
+.sheet { width: 220mm; height: 110mm; padding: 13mm 18mm; border: 1px solid #e8dfd0; position: relative; }
+.date { text-align: right; font-size: 10pt; }
+.salute { margin-top: 9mm; font-size: 14pt; font-weight: 600; }
+.message { margin-top: 6mm; font-size: 12pt; line-height: 1.45; max-width: 168mm; }
+.signature { position: absolute; right: 18mm; bottom: 12mm; text-align: right; line-height: 1.35; }
+@media print { body { margin: 0; } .sheet { border: 0; } }
+</style>
+</head>
+<body>
+{% for guest in guests %}
+<section class="sheet" lang="{{ guest.language.value }}">
+  <div class="date">{{ long_date(guest.arrival_date, guest.language) }}</div>
+  <div class="salute">{{ salutation(guest.language, guest.gender) }} {{ guest.last_name }},</div>
+  <p class="message">{{ welcome_text[guest.language].format(hotel=context.hotel_name, room=guest.room_number, arrival=short_date(guest.arrival_date, guest.language), departure=short_date(guest.departure_date, guest.language)) }}</p>
+  <div class="signature">
+    <strong>{{ context.manager_name }}</strong><br>
+    <span class="muted">{{ manager_role[guest.language] }}</span>
+  </div>
+</section>
+{% endfor %}
+</body>
+</html>

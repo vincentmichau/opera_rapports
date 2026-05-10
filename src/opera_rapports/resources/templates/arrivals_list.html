@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Liste des arrivées</title>
+<style>
+{% include 'base_print.css' %}
+@page { size: A4 landscape; margin: 12mm; }
+body { padding: 10mm; }
+h1 { margin: 0 0 8mm; font-size: 18pt; }
+table { width: 100%; border-collapse: collapse; font-size: 10pt; }
+th, td { border: 1px solid #cfd6df; padding: 6px; text-align: left; }
+th { background: #f2f5f8; }
+.note { width: 34%; height: 24px; }
+</style>
+</head>
+<body>
+<h1>Liste des arrivées{% if guests and guests[0].arrival_date %} — {{ long_date(guests[0].arrival_date, language) }}{% endif %}</h1>
+<table>
+<thead><tr><th>Chambre</th><th>Nom</th><th>Prénom</th><th>Civilité</th><th>Arrivée</th><th>Départ</th><th>Annotation</th></tr></thead>
+<tbody>
+{% for guest in guests %}
+<tr><td>{{ guest.room_number }}</td><td>{{ guest.last_name }}</td><td>{{ guest.first_name }}</td><td>{{ salutation(guest.language, guest.gender) }}</td><td>{{ short_date(guest.arrival_date, language) }}</td><td>{{ short_date(guest.departure_date, language) }}</td><td class="note"></td></tr>
+{% endfor %}
+</tbody>
+</table>
+</body>
+</html>
