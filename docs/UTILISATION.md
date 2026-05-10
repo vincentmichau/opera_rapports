@@ -50,3 +50,17 @@ Le menu **Application → Paramètres hôtel** permet de personnaliser :
 - l'imprimante favorite à documenter pour l'équipe ;
 - le chemin d'un logo à utiliser dans une future version ;
 - la durée de conservation locale avant purge automatique.
+
+
+## 8. Concepteur de modèles
+
+Le menu **Application → Concepteur de modèles** ouvre un éditeur simple pour les documents.
+On y retrouve les modèles intégrés :
+
+- **Carton de clé A6 paysage** ;
+- **Welcome letter DL paysage** ;
+- **Liste des arrivées A4 portrait** ;
+- **Liste des arrivées A4 paysage**.
+
+Les modèles intégrés sont protégés pour éviter les erreurs. Pour les personnaliser, cliquez sur **Dupliquer**, modifiez le nom, le contenu ou le CSS, puis cliquez sur **Enregistrer**.
+Il est aussi possible de créer un modèle vierge avec **Nouveau**, ou de supprimer les modèles personnalisés devenus inutiles.

@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import date
 from pathlib import Path
 
+from opera_rapports.core.document_templates import DocumentTemplate, TemplateCatalog
 from opera_rapports.core.exports import export_arrivals_docx, export_arrivals_xlsx
 from opera_rapports.core.models import Gender, Guest, Language
 from opera_rapports.core.reports import ReportContext, ReportRenderer
@@ -30,6 +31,7 @@ class AppController:
         self.repository = repository or Repository()
         self.renderer = renderer or ReportRenderer()
         self.app_settings = self.repository.get_app_settings()
+        self.template_catalog = self.load_template_catalog()
         self.repository.purge_imports_older_than(self.app_settings.retention_days)
 
     def load_arrivals(self, arrival: date | None = None) -> ArrivalTableViewModel:
@@ -76,9 +78,41 @@ class AppController:
             return self.renderer.render_key_cards(guests, context)
         if kind == "letter":
             return self.renderer.render_welcome_letters(guests, context)
-        return self.renderer.render_arrivals_list(guests)
+        if kind == "arrivals_portrait":
+            return self.renderer.render_arrivals_list(guests, orientation="portrait")
+        return self.renderer.render_arrivals_list(guests, orientation="landscape")
 
     def export_arrivals(self, kind: str, guests: list[Guest], target: str | Path) -> Path:
         if kind == "xlsx":
             return export_arrivals_xlsx(guests, target)
         return export_arrivals_docx(guests, target)
+
+    def load_template_catalog(self) -> TemplateCatalog:
+        return TemplateCatalog.from_settings(self.repository.get_setting("document_templates", None))
+
+    def list_document_templates(self) -> list[DocumentTemplate]:
+        self.template_catalog = self.load_template_catalog()
+        return self.template_catalog.list()
+
+    def save_document_template(self, template: DocumentTemplate) -> None:
+        self.template_catalog.upsert(template)
+        self.repository.set_setting("document_templates", self.template_catalog.to_settings())
+
+    def delete_document_template(self, template_id: str) -> bool:
+        deleted = self.template_catalog.delete(template_id)
+        if deleted:
+            self.repository.set_setting("document_templates", self.template_catalog.to_settings())
+        return deleted
+
+    def duplicate_document_template(self, template_id: str) -> DocumentTemplate | None:
+        template = self.template_catalog.get(template_id)
+        if template is None:
+            return None
+        duplicate = template.duplicate()
+        self.save_document_template(duplicate)
+        return duplicate
+
+    def create_document_template(self) -> DocumentTemplate:
+        template = self.template_catalog.create_blank()
+        self.save_document_template(template)
+        return template

@@ -11,7 +11,7 @@ Application desktop Windows 11 en Python pour la réception et le night audit d'
 - Tableau triable/filtrable par date d'arrivée, avec listes déroulantes civilité et langue.
 - KPI rapides : nombre d'arrivées, nombre de personnes, répartition par type de chambre.
 - Modèles HTML/CSS imprimables : `@page { size: A6 landscape }` pour les cartons en police **MV Boli** et `@page { size: 220mm 110mm landscape }` pour les welcome letters en **Aptos 11 pt**.
-- Base technique prête pour l'export PDF/DOCX/Excel, le concepteur de rapports graphique et les modèles personnalisables.
+- Base technique prête pour l'export PDF/DOCX/Excel, avec un premier concepteur simple de modèles personnalisables : cartons de clés, welcome letters, liste portrait et liste paysage.
 
 ## Architecture
 

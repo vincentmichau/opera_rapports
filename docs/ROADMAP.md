@@ -9,6 +9,9 @@
 
 ## Priorité 2 — Modèles personnalisables
 
+Concepteur déjà amorcé : catalogue de modèles, duplication des modèles intégrés, création, modification, suppression et sauvegarde des modèles personnalisés.
+
+
 - Éditeur graphique de modèles avec grille aimantée, règles, zones texte/image/champ et aperçu instantané.
 - Bibliothèque de champs disponibles : client, réservation, chambre, séjour, type chambre, formules.
 - Versionnement des modèles et bouton restaurer les modèles par défaut.

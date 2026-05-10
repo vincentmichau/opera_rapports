@@ -78,13 +78,13 @@ class ReportRenderer:
 @media print {{ body {{ margin: 0; }} .sheet {{ border: 0; }} }}
 </style></head><body>{''.join(sheets)}</body></html>"""
 
-    def render_arrivals_list(self, guests: list[Guest], language: Language = Language.FR) -> str:
+    def render_arrivals_list(self, guests: list[Guest], language: Language = Language.FR, orientation: str = "landscape") -> str:
         rows = []
         for guest in guests:
             rows.append(f"""<tr><td>{escape(guest.room_number)}</td><td>{escape(guest.last_name)}</td><td>{escape(guest.first_name)}</td><td>{escape(salutation(guest.language, guest.gender))}</td><td>{escape(short_date(guest.arrival_date, language))}</td><td>{escape(short_date(guest.departure_date, language))}</td><td class="note"></td></tr>""")
         title_date = f" — {long_date(guests[0].arrival_date, language)}" if guests and guests[0].arrival_date else ""
         return f"""<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Liste des arrivées</title><style>{_css()}
-@page {{ size: A4 landscape; margin: 12mm; }} body {{ padding: 10mm; }} h1 {{ margin: 0 0 8mm; font-size: 18pt; }} table {{ width: 100%; border-collapse: collapse; font-size: 10pt; }} th, td {{ border: 1px solid #cfd6df; padding: 6px; text-align: left; }} th {{ background: #f2f5f8; }} .note {{ width: 34%; height: 24px; }}</style></head><body><h1>Liste des arrivées{escape(title_date)}</h1><table><thead><tr><th>Chambre</th><th>Nom</th><th>Prénom</th><th>Civilité</th><th>Arrivée</th><th>Départ</th><th>Annotation</th></tr></thead><tbody>{''.join(rows)}</tbody></table></body></html>"""
+@page {{ size: A4 {orientation}; margin: 12mm; }} body {{ padding: 10mm; }} h1 {{ margin: 0 0 8mm; font-size: 18pt; }} table {{ width: 100%; border-collapse: collapse; font-size: 10pt; }} th, td {{ border: 1px solid #cfd6df; padding: 6px; text-align: left; }} th {{ background: #f2f5f8; }} .note {{ width: 34%; height: 24px; }}</style></head><body><h1>Liste des arrivées{escape(title_date)}</h1><table><thead><tr><th>Chambre</th><th>Nom</th><th>Prénom</th><th>Civilité</th><th>Arrivée</th><th>Départ</th><th>Annotation</th></tr></thead><tbody>{''.join(rows)}</tbody></table></body></html>"""
 
     def save_html(self, html: str, target: str | Path) -> Path:
         target_path = Path(target)

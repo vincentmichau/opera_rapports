@@ -30,11 +30,13 @@ from PySide6.QtWidgets import (
     QTableWidget,
     QTableWidgetItem,
     QTextBrowser,
+    QTextEdit,
     QToolBar,
     QVBoxLayout,
     QWidget,
 )
 
+from opera_rapports.core.document_templates import DocumentTemplate, TemplateKind
 from opera_rapports.core.models import Gender, Guest, Language
 from opera_rapports.core.settings import AppSettings
 from opera_rapports.core.ux import EMPTY_STATE_TEXT, HELP_HTML, quick_start_text
@@ -100,6 +102,8 @@ class MainWindow(QMainWindow):
         self.dark_action.triggered.connect(lambda: self.apply_theme("dark"))
         self.settings_action = QAction("Paramètres hôtel", self)
         self.settings_action.triggered.connect(self.edit_app_settings)
+        self.template_designer_action = QAction("Concepteur de modèles", self)
+        self.template_designer_action.triggered.connect(self.open_template_designer)
         self.export_xlsx_action = QAction("Exporter Excel (.xlsx)", self)
         self.export_xlsx_action.triggered.connect(lambda: self.export_arrivals("xlsx"))
         self.export_docx_action = QAction("Exporter Word (.docx)", self)
@@ -113,6 +117,7 @@ class MainWindow(QMainWindow):
         menu.addAction(self.dark_action)
         menu.addSeparator()
         menu.addAction(self.settings_action)
+        menu.addAction(self.template_designer_action)
         menu.addSeparator()
         menu.addAction(self.export_xlsx_action)
         menu.addAction(self.export_docx_action)
@@ -150,7 +155,7 @@ class MainWindow(QMainWindow):
         toolbar.addSeparator()
         toolbar.addWidget(QLabel("Modèle : "))
         self.model_combo = QComboBox()
-        self.model_combo.addItems(["Carton de clé A6", "Welcome letter DL", "Liste des arrivées"])
+        self.model_combo.addItems(["Carton de clé A6", "Welcome letter DL", "Liste des arrivées portrait", "Liste des arrivées paysage"] )
         toolbar.addWidget(self.model_combo)
         self.print_button = QPushButton("Imprimer la sélection")
         self.print_button.setToolTip("Imprimer le modèle choisi pour la ligne sélectionnée")
@@ -240,6 +245,141 @@ class MainWindow(QMainWindow):
         self.update_empty_state()
         self.update_action_state()
         self.update_kpis()
+
+    @staticmethod
+    def template_kind_label(kind: TemplateKind) -> str:
+        labels = {
+            TemplateKind.KEY_CARD: "Carton de clé",
+            TemplateKind.WELCOME_LETTER: "Welcome letter",
+            TemplateKind.ARRIVALS_PORTRAIT: "Liste arrivées portrait",
+            TemplateKind.ARRIVALS_LANDSCAPE: "Liste arrivées paysage",
+        }
+        return labels[kind]
+
+    def open_template_designer(self) -> None:
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Concepteur de modèles")
+        dialog.resize(900, 680)
+        layout = QVBoxLayout(dialog)
+        intro = QLabel(
+            "Créez, modifiez, dupliquez ou supprimez vos modèles. "
+            "Les modèles intégrés sont protégés : dupliquez-les pour les personnaliser."
+        )
+        intro.setWordWrap(True)
+        layout.addWidget(intro)
+
+        selector_row = QHBoxLayout()
+        template_combo = QComboBox()
+        selector_row.addWidget(QLabel("Modèle :"))
+        selector_row.addWidget(template_combo, 1)
+        new_button = QPushButton("Nouveau")
+        duplicate_button = QPushButton("Dupliquer")
+        delete_button = QPushButton("Supprimer")
+        selector_row.addWidget(new_button)
+        selector_row.addWidget(duplicate_button)
+        selector_row.addWidget(delete_button)
+        layout.addLayout(selector_row)
+
+        form = QFormLayout()
+        name_edit = QLineEdit()
+        kind_combo = QComboBox()
+        for kind in TemplateKind:
+            kind_combo.addItem(self.template_kind_label(kind), kind.value)
+        description_edit = QLineEdit()
+        content_edit = QTextEdit()
+        css_edit = QTextEdit()
+        content_edit.setPlaceholderText("Texte du modèle avec variables : {nom}, {prenom}, {chambre}, {arrivee}, {depart}, {hotel}...")
+        css_edit.setPlaceholderText("CSS d'impression : @page, .sheet, polices, marges...")
+        form.addRow("Nom", name_edit)
+        form.addRow("Type", kind_combo)
+        form.addRow("Description", description_edit)
+        form.addRow("Contenu", content_edit)
+        form.addRow("Style CSS", css_edit)
+        layout.addLayout(form)
+
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Close)
+        layout.addWidget(buttons)
+        templates: list[DocumentTemplate] = []
+
+        def refresh(selected_id: str | None = None) -> None:
+            nonlocal templates
+            templates = self.controller.list_document_templates()
+            template_combo.blockSignals(True)
+            template_combo.clear()
+            for template in templates:
+                suffix = " (intégré)" if template.is_builtin else ""
+                template_combo.addItem(f"{template.name} — {self.template_kind_label(template.kind)}{suffix}", template.id)
+            if selected_id:
+                index = template_combo.findData(selected_id)
+                if index >= 0:
+                    template_combo.setCurrentIndex(index)
+            template_combo.blockSignals(False)
+            load_current()
+
+        def current_template() -> DocumentTemplate | None:
+            template_id = template_combo.currentData()
+            return next((template for template in templates if template.id == template_id), None)
+
+        def load_current() -> None:
+            template = current_template()
+            if template is None:
+                return
+            name_edit.setText(template.name)
+            kind_combo.setCurrentIndex(max(kind_combo.findData(template.kind.value), 0))
+            description_edit.setText(template.description)
+            content_edit.setPlainText(template.content)
+            css_edit.setPlainText(template.css)
+            delete_button.setEnabled(not template.is_builtin)
+
+        def save_current() -> None:
+            template = current_template()
+            template_id = template.id if template else ""
+            is_builtin = template.is_builtin if template else False
+            if is_builtin:
+                QMessageBox.information(dialog, "Modèle intégré", "Dupliquez ce modèle intégré avant de le modifier.")
+                return
+            saved = DocumentTemplate(
+                id=template_id,
+                name=name_edit.text().strip() or "Nouveau modèle",
+                kind=TemplateKind(kind_combo.currentData()),
+                description=description_edit.text().strip(),
+                content=content_edit.toPlainText(),
+                css=css_edit.toPlainText(),
+                is_builtin=False,
+            )
+            self.controller.save_document_template(saved)
+            refresh(saved.id)
+            QMessageBox.information(dialog, "Modèle enregistré", "Le modèle a été enregistré.")
+
+        def create_new() -> None:
+            template = self.controller.create_document_template()
+            refresh(template.id)
+
+        def duplicate_current() -> None:
+            template = current_template()
+            if template is None:
+                return
+            duplicate = self.controller.duplicate_document_template(template.id)
+            if duplicate:
+                refresh(duplicate.id)
+
+        def delete_current() -> None:
+            template = current_template()
+            if template is None:
+                return
+            if QMessageBox.question(dialog, "Supprimer", f"Supprimer le modèle {template.name} ?") == QMessageBox.StandardButton.Yes:
+                if not self.controller.delete_document_template(template.id):
+                    QMessageBox.warning(dialog, "Suppression impossible", "Les modèles intégrés ne peuvent pas être supprimés.")
+                refresh()
+
+        template_combo.currentIndexChanged.connect(load_current)
+        new_button.clicked.connect(create_new)
+        duplicate_button.clicked.connect(duplicate_current)
+        delete_button.clicked.connect(delete_current)
+        buttons.accepted.connect(save_current)
+        buttons.rejected.connect(dialog.reject)
+        refresh()
+        dialog.exec()
 
     def update_empty_state(self) -> None:
         has_rows = bool(self.guests)
@@ -424,15 +564,21 @@ class MainWindow(QMainWindow):
             self.controller.clear_arrivals()
             self.reload_table()
 
-    def preview_selection(self) -> None:
+    def selected_model_kind(self) -> str:
         model = self.model_combo.currentText()
-        kind = "key" if "Carton" in model else "letter" if "Welcome" in model else "arrivals"
-        self.preview_or_print(kind, self.current_selection(), print_now=False)
+        if "Carton" in model:
+            return "key"
+        if "Welcome" in model:
+            return "letter"
+        if "portrait" in model.lower():
+            return "arrivals_portrait"
+        return "arrivals_landscape"
+
+    def preview_selection(self) -> None:
+        self.preview_or_print(self.selected_model_kind(), self.current_selection(), print_now=False)
 
     def print_selection(self) -> None:
-        model = self.model_combo.currentText()
-        kind = "key" if "Carton" in model else "letter" if "Welcome" in model else "arrivals"
-        self.preview_or_print(kind, self.current_selection(), print_now=True)
+        self.preview_or_print(self.selected_model_kind(), self.current_selection(), print_now=True)
 
     def preview_or_print(self, kind: str, guests: list[Guest], print_now: bool) -> None:
         if not guests:
