@@ -8,6 +8,7 @@ from opera_rapports.core.exports import export_arrivals_docx, export_arrivals_xl
 from opera_rapports.core.models import Gender, Guest, Language
 from opera_rapports.core.reports import ReportContext, ReportRenderer
 from opera_rapports.core.settings import AppSettings
+from opera_rapports.core.template_rendering import TemplateValidation, render_template_preview, validate_template
 from opera_rapports.core.storage import Repository
 from opera_rapports.mvc.models import ArrivalTableViewModel
 
@@ -68,13 +69,16 @@ class AppController:
     def save_theme(self, theme: str) -> None:
         self.repository.set_setting("theme", theme)
 
-    def render_report(self, kind: str, guests: list[Guest]) -> str:
-        context = ReportContext(
+    def report_context(self) -> ReportContext:
+        return ReportContext(
             hotel_name=self.app_settings.hotel_name,
             manager_name=self.app_settings.manager_name,
             manager_role_fr=self.app_settings.manager_role_fr,
             logo_path=self.app_settings.logo_path,
         )
+
+    def render_report(self, kind: str, guests: list[Guest]) -> str:
+        context = self.report_context()
         if kind == "key":
             return self.renderer.render_key_cards(guests, context)
         if kind == "letter":
@@ -101,7 +105,16 @@ class AppController:
         self.template_catalog = self.load_template_catalog()
         return self.template_catalog.list()
 
+    def validate_document_template(self, template: DocumentTemplate) -> TemplateValidation:
+        return validate_template(template)
+
+    def preview_document_template(self, template: DocumentTemplate) -> str:
+        return render_template_preview(template, self.report_context())
+
     def save_document_template(self, template: DocumentTemplate) -> None:
+        validation = self.validate_document_template(template)
+        if not validation.is_valid:
+            raise ValueError(validation.message)
         self.template_catalog.upsert(template)
         self.repository.set_setting("document_templates", self.template_catalog.to_settings())
         self.repository.record_audit("template_saved", template.kind.value)

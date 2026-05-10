@@ -65,3 +65,10 @@ On y retrouve les modèles intégrés :
 
 Les modèles intégrés sont protégés pour éviter les erreurs. Pour les personnaliser, cliquez sur **Dupliquer**, modifiez le nom, le contenu ou le CSS, puis cliquez sur **Enregistrer**.
 Il est aussi possible de créer un modèle vierge avec **Nouveau**, ou de supprimer les modèles personnalisés devenus inutiles.
+
+
+### Champs et aperçu des modèles
+
+Le concepteur affiche les champs disponibles entre accolades, par exemple `{nom}`, `{prenom}`, `{chambre}`, `{arrivee}`, `{depart}`, `{hotel}`, `{directeur}` et `{fonction}`.
+Avant l'enregistrement, les champs inconnus sont signalés pour éviter un modèle cassé au moment de l'impression.
+Le bouton **Aperçu modèle** génère un aperçu HTML avec un client fictif, afin de contrôler rapidement le rendu sans importer de nouveau fichier.

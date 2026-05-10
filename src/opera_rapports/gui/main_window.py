@@ -37,6 +37,7 @@ from PySide6.QtWidgets import (
 )
 
 from opera_rapports.core.document_templates import DocumentTemplate, TemplateKind
+from opera_rapports.core.template_rendering import AVAILABLE_FIELDS
 from opera_rapports.core.models import Gender, Guest, Language
 from opera_rapports.core.settings import AppSettings
 from opera_rapports.core.ux import EMPTY_STATE_TEXT, HELP_HTML, quick_start_text
@@ -261,9 +262,11 @@ class MainWindow(QMainWindow):
         dialog.setWindowTitle("Concepteur de modèles")
         dialog.resize(900, 680)
         layout = QVBoxLayout(dialog)
+        fields = ", ".join(f"{{{name}}}" for name in AVAILABLE_FIELDS)
         intro = QLabel(
             "Créez, modifiez, dupliquez ou supprimez vos modèles. "
-            "Les modèles intégrés sont protégés : dupliquez-les pour les personnaliser."
+            "Les modèles intégrés sont protégés : dupliquez-les pour les personnaliser. "
+            f"Champs disponibles : {fields}"
         )
         intro.setWordWrap(True)
         layout.addWidget(intro)
@@ -274,9 +277,11 @@ class MainWindow(QMainWindow):
         selector_row.addWidget(template_combo, 1)
         new_button = QPushButton("Nouveau")
         duplicate_button = QPushButton("Dupliquer")
+        preview_template_button = QPushButton("Aperçu modèle")
         delete_button = QPushButton("Supprimer")
         selector_row.addWidget(new_button)
         selector_row.addWidget(duplicate_button)
+        selector_row.addWidget(preview_template_button)
         selector_row.addWidget(delete_button)
         layout.addLayout(selector_row)
 
@@ -331,25 +336,47 @@ class MainWindow(QMainWindow):
             css_edit.setPlainText(template.css)
             delete_button.setEnabled(not template.is_builtin)
 
-        def save_current() -> None:
+        def edited_template(force_custom: bool = False) -> DocumentTemplate | None:
             template = current_template()
-            template_id = template.id if template else ""
-            is_builtin = template.is_builtin if template else False
-            if is_builtin:
-                QMessageBox.information(dialog, "Modèle intégré", "Dupliquez ce modèle intégré avant de le modifier.")
-                return
-            saved = DocumentTemplate(
-                id=template_id,
+            if template is None:
+                return None
+            return DocumentTemplate(
+                id=template.id,
                 name=name_edit.text().strip() or "Nouveau modèle",
                 kind=TemplateKind(kind_combo.currentData()),
                 description=description_edit.text().strip(),
                 content=content_edit.toPlainText(),
                 css=css_edit.toPlainText(),
-                is_builtin=False,
+                is_builtin=template.is_builtin and not force_custom,
             )
-            self.controller.save_document_template(saved)
-            refresh(saved.id)
+
+        def save_current() -> None:
+            template = edited_template(force_custom=True)
+            original = current_template()
+            if template is None or original is None:
+                return
+            if original.is_builtin:
+                QMessageBox.information(dialog, "Modèle intégré", "Dupliquez ce modèle intégré avant de le modifier.")
+                return
+            validation = self.controller.validate_document_template(template)
+            if not validation.is_valid:
+                QMessageBox.warning(dialog, "Champs inconnus", validation.message)
+                return
+            self.controller.save_document_template(template)
+            refresh(template.id)
             QMessageBox.information(dialog, "Modèle enregistré", "Le modèle a été enregistré.")
+
+        def preview_current() -> None:
+            template = edited_template()
+            if template is None:
+                return
+            validation = self.controller.validate_document_template(template)
+            if not validation.is_valid:
+                QMessageBox.warning(dialog, "Champs inconnus", validation.message)
+                return
+            target = Path(tempfile.gettempdir()) / "opera_rapports_template_preview.html"
+            target.write_text(self.controller.preview_document_template(template), encoding="utf-8")
+            QDesktopServices.openUrl(target.as_uri())
 
         def create_new() -> None:
             template = self.controller.create_document_template()
@@ -375,6 +402,7 @@ class MainWindow(QMainWindow):
         template_combo.currentIndexChanged.connect(load_current)
         new_button.clicked.connect(create_new)
         duplicate_button.clicked.connect(duplicate_current)
+        preview_template_button.clicked.connect(preview_current)
         delete_button.clicked.connect(delete_current)
         buttons.accepted.connect(save_current)
         buttons.rejected.connect(dialog.reject)
