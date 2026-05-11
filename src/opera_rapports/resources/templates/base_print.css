@@ -1,0 +1,5 @@
+:root { color: #1d2433; font-family: 'Segoe UI', Arial, sans-serif; }
+body { margin: 0; background: white; }
+.sheet { box-sizing: border-box; break-after: page; page-break-after: always; overflow: hidden; }
+.muted { color: #5f6b7a; }
+.hotel { letter-spacing: .12em; text-transform: uppercase; }

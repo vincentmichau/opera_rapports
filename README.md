@@ -1,0 +1,68 @@
+# Opera Rapports
+
+Application desktop Windows 11 en Python pour la réception et le night audit d'un hôtel. Elle importe un fichier XML Opera Cloud, stocke les arrivées dans SQLite, permet de corriger civilité/langue, puis génère des cartons de clés A6 paysage, des welcome letters DL paysage et une liste d'arrivées imprimable.
+
+## Objectifs fonctionnels
+
+- Interface moderne PySide6 avec ruban, aide rapide, message d'écran vide, filtres de date, choix de modèle, actions d'impression, menu thème clair/sombre et barre d'état.
+- Import XML Opera Cloud non bloquant avec barre de progression.
+- Normalisation RGPD-friendly : stockage local SQLite, données limitées à l'import opérationnel, remplacement complet à chaque import et journal d'audit local sans données personnelles.
+- Parsing des noms : nom en majuscules, prénom en casse titre, civilité et langue déduites puis rectifiables.
+- Tableau triable/filtrable par date d'arrivée, avec listes déroulantes civilité et langue.
+- KPI rapides : nombre d'arrivées, nombre de personnes, répartition par type de chambre.
+- Modèles HTML/CSS imprimables : `@page { size: A6 landscape }` pour les cartons en police **MV Boli** et `@page { size: 220mm 110mm landscape }` pour les welcome letters en **Aptos 11 pt**.
+- Base technique prête pour l'export PDF/DOCX/Excel, avec un premier concepteur simple de modèles personnalisables : cartons de clés, welcome letters, liste portrait et liste paysage.
+
+## Architecture
+
+Le projet suit maintenant une séparation **MVC** :
+
+- **Model** : dataclasses métier et view models dans `core.models` et `mvc.models` ;
+- **Controller** : orchestration des imports, exports, rendus et paramètres dans `mvc.controllers.AppController` ;
+- **View** : interface PySide6 dans `gui.main_window`, qui ne pilote plus directement la base de données.
+
+L'accès SQLite est isolé avec un pattern **DAO + factory** : `core.dao.DAOFactory` construit les DAO `GuestDAO` et `SettingsDAO`, tandis que `core.storage.Repository` reste une façade compatible pour le reste de l'application.
+
+## Installation développeur
+
+```bash
+python -m venv .venv
+. .venv/Scripts/activate  # Windows
+pip install -e .[dev]
+opera-rapports
+```
+
+
+## Export et exploitation
+
+- Le menu **Application** permet maintenant d'exporter la liste filtrée en `.xlsx` ou `.docx` sans nécessiter Microsoft Office sur le poste.
+- Le bouton **Colonnes** permet de mémoriser localement les colonnes visibles pour simplifier l'écran des utilisateurs néophytes.
+- Une purge locale est disponible pour supprimer les arrivées importées après traitement, avec une durée de conservation paramétrable.
+- Les paramètres hôtel permettent de personnaliser le nom de l’établissement, la signature et la fonction imprimée sur les welcome letters.
+- Un fichier d'exemple est fourni dans `samples/opera_arrivals_sample.xml` pour tester le parcours complet.
+
+## Créer un ZIP pour GitHub
+
+```bash
+python tools/create_github_zip.py
+```
+
+Le script crée `opera_rapports_github.zip` avec les fichiers suivis par Git, prêt à déposer sur GitHub si le push direct est bloqué par le réseau.
+
+## Packaging Windows
+
+Le dépôt contient un workflow GitHub Actions qui produit trois familles d'artefacts :
+
+1. **Installable EXE** avec Inno Setup (`packaging/inno/setup.iss`) : installe l'application, crée les raccourcis et embarque les dépendances Python dans le bundle PyInstaller.
+2. **PortableApps** (`packaging/portableapps/AppInfo/appinfo.ini`) : archive portable autonome basée sur la sortie PyInstaller `onedir`.
+3. **MSI** avec WiX Toolset (`packaging/wix/Product.wxs`) : installe les fichiers du bundle et expose une base MSI standard.
+
+Le runtime Python et les bibliothèques sont inclus dans les bundles PyInstaller afin que les utilisateurs néophytes n'aient rien à installer séparément.
+
+## Feuille de route suggérée
+
+- Ajouter un écran de paramétrage hôtel : nom, logo, directrice, imprimantes favorites, formats papier.
+- Ajouter un concepteur graphique de rapports : grille aimantée, règle, zones texte/images/champs, expressions conditionnelles.
+- Ajouter l'export natif PDF via Chromium/Qt WebEngine ou WeasyPrint, DOCX via `python-docx` et Excel via `openpyxl`.
+- Ajouter une politique de purge automatique des imports anciens, un journal d'audit local et un mode anonymisation.
+- Ajouter des tests d'import sur des échantillons XML Opera Cloud réels anonymisés.
