@@ -9,7 +9,7 @@
 
 ## Priorité 2 — Modèles personnalisables
 
-Concepteur déjà amorcé : catalogue de modèles, duplication des modèles intégrés, création, modification, suppression et sauvegarde des modèles personnalisés.
+Concepteur déjà amorcé : catalogue de modèles, duplication des modèles intégrés, création, modification, suppression et sauvegarde des modèles personnalisés. Concepteur extrait dans un module GUI dédié pour préparer le futur éditeur graphique à grille/règles.
 
 
 - Éditeur graphique de modèles avec grille aimantée, règles, zones texte/image/champ et aperçu instantané.

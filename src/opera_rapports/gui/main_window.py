@@ -30,18 +30,16 @@ from PySide6.QtWidgets import (
     QTableWidget,
     QTableWidgetItem,
     QTextBrowser,
-    QTextEdit,
     QToolBar,
     QVBoxLayout,
     QWidget,
 )
 
-from opera_rapports.core.document_templates import DocumentTemplate, TemplateKind
-from opera_rapports.core.template_rendering import AVAILABLE_FIELDS
 from opera_rapports.core.models import Gender, Guest, Language
 from opera_rapports.core.settings import AppSettings
 from opera_rapports.core.ux import EMPTY_STATE_TEXT, HELP_HTML, quick_start_text
 from opera_rapports.core.xml_importer import import_opera_xml
+from opera_rapports.gui.template_designer import TemplateDesignerDialog
 from opera_rapports.mvc.controllers import AppController
 from opera_rapports.mvc.models import ArrivalTableViewModel
 
@@ -247,167 +245,8 @@ class MainWindow(QMainWindow):
         self.update_action_state()
         self.update_kpis()
 
-    @staticmethod
-    def template_kind_label(kind: TemplateKind) -> str:
-        labels = {
-            TemplateKind.KEY_CARD: "Carton de clé",
-            TemplateKind.WELCOME_LETTER: "Welcome letter",
-            TemplateKind.ARRIVALS_PORTRAIT: "Liste arrivées portrait",
-            TemplateKind.ARRIVALS_LANDSCAPE: "Liste arrivées paysage",
-        }
-        return labels[kind]
-
     def open_template_designer(self) -> None:
-        dialog = QDialog(self)
-        dialog.setWindowTitle("Concepteur de modèles")
-        dialog.resize(900, 680)
-        layout = QVBoxLayout(dialog)
-        fields = ", ".join(f"{{{name}}}" for name in AVAILABLE_FIELDS)
-        intro = QLabel(
-            "Créez, modifiez, dupliquez ou supprimez vos modèles. "
-            "Les modèles intégrés sont protégés : dupliquez-les pour les personnaliser. "
-            f"Champs disponibles : {fields}"
-        )
-        intro.setWordWrap(True)
-        layout.addWidget(intro)
-
-        selector_row = QHBoxLayout()
-        template_combo = QComboBox()
-        selector_row.addWidget(QLabel("Modèle :"))
-        selector_row.addWidget(template_combo, 1)
-        new_button = QPushButton("Nouveau")
-        duplicate_button = QPushButton("Dupliquer")
-        preview_template_button = QPushButton("Aperçu modèle")
-        delete_button = QPushButton("Supprimer")
-        selector_row.addWidget(new_button)
-        selector_row.addWidget(duplicate_button)
-        selector_row.addWidget(preview_template_button)
-        selector_row.addWidget(delete_button)
-        layout.addLayout(selector_row)
-
-        form = QFormLayout()
-        name_edit = QLineEdit()
-        kind_combo = QComboBox()
-        for kind in TemplateKind:
-            kind_combo.addItem(self.template_kind_label(kind), kind.value)
-        description_edit = QLineEdit()
-        content_edit = QTextEdit()
-        css_edit = QTextEdit()
-        content_edit.setPlaceholderText("Texte du modèle avec variables : {nom}, {prenom}, {chambre}, {arrivee}, {depart}, {hotel}...")
-        css_edit.setPlaceholderText("CSS d'impression : @page, .sheet, polices, marges...")
-        form.addRow("Nom", name_edit)
-        form.addRow("Type", kind_combo)
-        form.addRow("Description", description_edit)
-        form.addRow("Contenu", content_edit)
-        form.addRow("Style CSS", css_edit)
-        layout.addLayout(form)
-
-        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Close)
-        layout.addWidget(buttons)
-        templates: list[DocumentTemplate] = []
-
-        def refresh(selected_id: str | None = None) -> None:
-            nonlocal templates
-            templates = self.controller.list_document_templates()
-            template_combo.blockSignals(True)
-            template_combo.clear()
-            for template in templates:
-                suffix = " (intégré)" if template.is_builtin else ""
-                template_combo.addItem(f"{template.name} — {self.template_kind_label(template.kind)}{suffix}", template.id)
-            if selected_id:
-                index = template_combo.findData(selected_id)
-                if index >= 0:
-                    template_combo.setCurrentIndex(index)
-            template_combo.blockSignals(False)
-            load_current()
-
-        def current_template() -> DocumentTemplate | None:
-            template_id = template_combo.currentData()
-            return next((template for template in templates if template.id == template_id), None)
-
-        def load_current() -> None:
-            template = current_template()
-            if template is None:
-                return
-            name_edit.setText(template.name)
-            kind_combo.setCurrentIndex(max(kind_combo.findData(template.kind.value), 0))
-            description_edit.setText(template.description)
-            content_edit.setPlainText(template.content)
-            css_edit.setPlainText(template.css)
-            delete_button.setEnabled(not template.is_builtin)
-
-        def edited_template(force_custom: bool = False) -> DocumentTemplate | None:
-            template = current_template()
-            if template is None:
-                return None
-            return DocumentTemplate(
-                id=template.id,
-                name=name_edit.text().strip() or "Nouveau modèle",
-                kind=TemplateKind(kind_combo.currentData()),
-                description=description_edit.text().strip(),
-                content=content_edit.toPlainText(),
-                css=css_edit.toPlainText(),
-                is_builtin=template.is_builtin and not force_custom,
-            )
-
-        def save_current() -> None:
-            template = edited_template(force_custom=True)
-            original = current_template()
-            if template is None or original is None:
-                return
-            if original.is_builtin:
-                QMessageBox.information(dialog, "Modèle intégré", "Dupliquez ce modèle intégré avant de le modifier.")
-                return
-            validation = self.controller.validate_document_template(template)
-            if not validation.is_valid:
-                QMessageBox.warning(dialog, "Champs inconnus", validation.message)
-                return
-            self.controller.save_document_template(template)
-            refresh(template.id)
-            QMessageBox.information(dialog, "Modèle enregistré", "Le modèle a été enregistré.")
-
-        def preview_current() -> None:
-            template = edited_template()
-            if template is None:
-                return
-            validation = self.controller.validate_document_template(template)
-            if not validation.is_valid:
-                QMessageBox.warning(dialog, "Champs inconnus", validation.message)
-                return
-            target = Path(tempfile.gettempdir()) / "opera_rapports_template_preview.html"
-            target.write_text(self.controller.preview_document_template(template), encoding="utf-8")
-            QDesktopServices.openUrl(target.as_uri())
-
-        def create_new() -> None:
-            template = self.controller.create_document_template()
-            refresh(template.id)
-
-        def duplicate_current() -> None:
-            template = current_template()
-            if template is None:
-                return
-            duplicate = self.controller.duplicate_document_template(template.id)
-            if duplicate:
-                refresh(duplicate.id)
-
-        def delete_current() -> None:
-            template = current_template()
-            if template is None:
-                return
-            if QMessageBox.question(dialog, "Supprimer", f"Supprimer le modèle {template.name} ?") == QMessageBox.StandardButton.Yes:
-                if not self.controller.delete_document_template(template.id):
-                    QMessageBox.warning(dialog, "Suppression impossible", "Les modèles intégrés ne peuvent pas être supprimés.")
-                refresh()
-
-        template_combo.currentIndexChanged.connect(load_current)
-        new_button.clicked.connect(create_new)
-        duplicate_button.clicked.connect(duplicate_current)
-        preview_template_button.clicked.connect(preview_current)
-        delete_button.clicked.connect(delete_current)
-        buttons.accepted.connect(save_current)
-        buttons.rejected.connect(dialog.reject)
-        refresh()
-        dialog.exec()
+        TemplateDesignerDialog(self.controller, self).exec()
 
     def update_empty_state(self) -> None:
         has_rows = bool(self.guests)
